@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 48" fill="none">
+  <rect x="0.75" y="4.75" width="38.5" height="38.5" rx="12" fill="white" stroke="rgba(20,35,55,0.12)"/>
+  <path d="M8 31 17 13 23 27 31 9" stroke="#4F68FF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M25.6 9.4h5.4" stroke="#4F68FF" stroke-width="3.4" stroke-linecap="round"/>
+  <text x="52" y="31" font-family="Plus Jakarta Sans, Inter, Segoe UI, Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="-1.2">
+    <tspan fill="#4F68FF">V</tspan><tspan fill="#0D1726">rise</tspan>
+  </text>
+</svg>
