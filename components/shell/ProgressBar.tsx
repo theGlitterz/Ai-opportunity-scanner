@@ -3,9 +3,9 @@ import React from 'react';
 import type { AppStep } from '../../types';
 
 const STEPS: { id: AppStep; label: string }[] = [
-  { id: 'profile', label: 'Company Profile' },
-  { id: 'assessment', label: 'Assessment' },
-  { id: 'report', label: 'Report' },
+  { id: 'profile', label: 'Company' },
+  { id: 'assessment', label: 'Diagnostic' },
+  { id: 'report', label: 'Opportunity Report' },
 ];
 
 const STEP_ORDER: AppStep[] = ['profile', 'assessment', 'report'];

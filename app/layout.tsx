@@ -16,8 +16,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'VRise Revenue Scanner',
-  description: 'AI revenue opportunity assessment for business leaders — powered by VRise',
+  title: 'AI Profit Opportunity Scanner | VRise',
+  description: 'Estimate where AI can improve revenue, reduce cost, increase margin, and unlock operational capacity in your business.',
   icons: {
     icon: [
       { url: '/favicon.ico' },

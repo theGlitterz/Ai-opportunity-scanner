@@ -224,3 +224,123 @@ export type ReportResults = {
 };
 
 export type AppStep = 'profile' | 'assessment' | 'report';
+
+// AI Profit Opportunity Scanner
+export type Sector =
+  | 'professional-services' | 'marketing-agency' | 'saas-technology'
+  | 'manufacturing' | 'distribution-wholesale' | 'logistics-field-services'
+  | 'healthcare-regulated' | 'legal-insurance' | 'recruitment-staffing'
+  | 'financial-accounting' | 'retail-ecommerce' | 'other-b2b';
+
+export type ScannerRevenueBand =
+  | 'under-500k' | '500k-1m' | '1m-3m' | '3m-10m'
+  | '10m-30m' | '30m-100m' | '100m-plus';
+
+export type ScannerEmployeeBand =
+  | '1-10' | '11-25' | '26-50' | '51-100'
+  | '101-250' | '251-500' | '500-plus';
+
+export type ScannerGeography =
+  | 'ireland' | 'uk-ireland' | 'europe' | 'north-america' | 'multi-region' | 'other';
+
+export type RevenueModel =
+  | 'project-b2b' | 'recurring-contracts' | 'subscription-saas' | 'product-sales'
+  | 'high-volume-transactions' | 'field-service' | 'marketplace-platform' | 'mixed';
+
+export type ScannerOperatingModel =
+  | 'office-services' | 'digital-services' | 'field-operations'
+  | 'multi-location' | 'manufacturing-warehouse' | 'hybrid';
+
+export type ValuePriority =
+  | 'increase-revenue' | 'reduce-cost' | 'improve-cash-flow' | 'reduce-admin'
+  | 'customer-speed' | 'delivery-throughput' | 'reduce-risk';
+
+export type PressureTeam =
+  | 'sales' | 'finance' | 'operations' | 'customer' | 'hr'
+  | 'it' | 'legal-risk' | 'leadership-admin' | 'not-sure';
+
+export type WorkflowMaturity =
+  | 'ad-hoc' | 'partly-documented' | 'documented-manual'
+  | 'system-fragmented' | 'mature-measured';
+
+export type DataLocation =
+  | 'spreadsheets' | 'crm' | 'accounting' | 'erp' | 'helpdesk'
+  | 'hr-system' | 'disconnected-tools' | 'not-sure';
+
+export type ScannerAIUsage =
+  | 'not-used' | 'individual-experimentation' | 'team-usage'
+  | 'workflow-usage' | 'mature-adoption';
+
+export type PerformanceBlocker =
+  | 'team-capacity' | 'manual-processes' | 'fragmented-data' | 'cost-pressure'
+  | 'slow-response' | 'reporting-visibility' | 'risk-complexity' | 'not-sure';
+
+export type ScannerProfile = {
+  companyName: string;
+  sector: Sector | '';
+  revenueBand: ScannerRevenueBand | '';
+  employeeBand: ScannerEmployeeBand | '';
+  geography: ScannerGeography | '';
+  revenueModel: RevenueModel | '';
+  operatingModel: ScannerOperatingModel | '';
+};
+
+export type ScannerAnswerValue = string | string[];
+export type ScannerAnswers = Partial<Record<string, ScannerAnswerValue>>;
+
+export type ScannerQuestion = {
+  id: string;
+  section: 'Company profile' | 'Operating model' | 'Profit pressure' | 'Readiness';
+  text: string;
+  helperText?: string;
+  type: 'single' | 'multi';
+  options: { value: string; label: string }[];
+};
+
+export type ProfitLeverId =
+  | 'revenue-growth' | 'operations-capacity' | 'finance-working-capital'
+  | 'customer-experience' | 'people-productivity' | 'it-productivity' | 'legal-risk';
+
+export type ImpactLevel = 'Low' | 'Medium' | 'High' | 'Very High';
+export type ComplexityLevel = 'Low' | 'Medium' | 'High';
+export type SpeedToValue = 'Fast' | 'Medium' | 'Longer';
+export type ConfidenceLevel = 'Low' | 'Medium' | 'High';
+
+export type ProfitLeverResult = {
+  id: ProfitLeverId;
+  name: string;
+  valueLow: number;
+  valueHigh: number;
+  share: number;
+  impact: ImpactLevel;
+  complexity: ComplexityLevel;
+  speedToValue: SpeedToValue;
+  whyItMatters: string;
+  exampleImplementation: string;
+  easeScore: number;
+};
+
+export type PilotRecommendation = {
+  leverId: ProfitLeverId;
+  area: string;
+  whyFirst: string;
+  validate: string;
+  review: string;
+  output: string;
+};
+
+export type ProfitOpportunityReport = {
+  score: number;
+  opportunityLevel: 'Low' | 'Medium' | 'High' | 'Very High';
+  annualOpportunity: { low: number; high: number };
+  marginImpact: { low: number; high: number };
+  capacityOpportunity: { low: number; high: number };
+  confidence: ConfidenceLevel;
+  confidenceReason: string;
+  summary: string;
+  topLevers: ProfitLeverResult[];
+  allLevers: ProfitLeverResult[];
+  recommendation: PilotRecommendation;
+  assumptions: string[];
+  revenueMidpoint: number;
+};

@@ -40,6 +40,8 @@
 
 import type { BusinessArea, OpportunityTheme } from '../types';
 
+export type PilotFunction = BusinessArea | 'Sales' | 'HR' | 'IT' | 'Legal / contracts' | 'Customer support';
+
 export type BadgeVariant = 'default' | 'accent' | 'warm' | 'neutral';
 
 export type CardItem = {
@@ -79,7 +81,7 @@ export type DemoStep = {
 
 export type PilotDemo = {
   id: string;
-  businessArea: BusinessArea;
+  businessArea: PilotFunction;
   supportedThemes?: OpportunityTheme[];
   title: string;
   subtitle: string;

@@ -284,7 +284,7 @@ export function PilotDemoModal({ demo, onClose }: Props) {
 
   const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`${demo.title} — example pilot workflow`}
@@ -297,10 +297,10 @@ export function PilotDemoModal({ demo, onClose }: Props) {
 
       <div
         ref={modalRef}
-        className="relative w-full max-w-3xl max-h-[90vh] flex flex-col bg-[#EEF2F8] rounded-[24px] overflow-hidden"
+        className="relative w-full max-w-3xl max-h-[96dvh] sm:max-h-[90vh] flex flex-col bg-[#EEF2F8] rounded-[18px] sm:rounded-[24px] overflow-hidden"
         style={{ boxShadow: 'var(--shadow-lg)' }}
       >
-        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-[rgba(20,35,55,0.10)] bg-white">
+        <div className="flex-shrink-0 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[rgba(20,35,55,0.10)] bg-white">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-[#4F68FF] mb-1">
@@ -327,7 +327,7 @@ export function PilotDemoModal({ demo, onClose }: Props) {
             </button>
           </div>
 
-          <div className="flex items-center gap-1 mt-4">
+          <div className="flex items-center gap-1 mt-3 sm:mt-4 overflow-x-auto pb-1">
             {demo.steps.map((s, i) => (
               <React.Fragment key={i}>
                 <button
@@ -358,7 +358,7 @@ export function PilotDemoModal({ demo, onClose }: Props) {
                       s.stepNumber
                     )}
                   </span>
-                  <span className="hidden sm:inline">{s.label}</span>
+                  <span className={`${i === currentStep ? 'inline' : 'hidden'} sm:inline`}>{s.label}</span>
                 </button>
                 {i < demo.steps.length - 1 && (
                   <div className={`flex-1 h-px max-w-[24px] ${i < currentStep ? 'bg-[#4F68FF]' : 'bg-[rgba(20,35,55,0.12)]'}`} />
@@ -368,7 +368,7 @@ export function PilotDemoModal({ demo, onClose }: Props) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
           <div className="mb-4">
             <h3 className="text-base font-bold font-heading text-[#0D1726] mb-1">{step.heading}</h3>
             <p className="text-sm text-[#748094] leading-relaxed">{step.description}</p>
@@ -382,14 +382,14 @@ export function PilotDemoModal({ demo, onClose }: Props) {
           />
         </div>
 
-        <div className="flex-shrink-0 px-6 py-3 bg-[rgba(20,35,55,0.04)] border-t border-[rgba(20,35,55,0.08)]">
+        <div className="flex-shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 bg-[rgba(20,35,55,0.04)] border-t border-[rgba(20,35,55,0.08)]">
           <p className="text-xs text-[#748094] leading-relaxed">
             <span className="font-semibold">Note: </span>
             {demo.disclaimer}
           </p>
         </div>
 
-        <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-[rgba(20,35,55,0.10)] flex items-center justify-between gap-3">
+        <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 bg-white border-t border-[rgba(20,35,55,0.10)] flex items-center justify-between gap-3">
           <Button
             variant="ghost"
             size="sm"
@@ -404,12 +404,12 @@ export function PilotDemoModal({ demo, onClose }: Props) {
 
           <div className="flex items-center gap-2">
             {isLast ? (
-              <Button size="sm">
-                Discuss a tailored pilot
+              <a href="mailto:hello@vrise.tech?subject=Discuss%20a%20tailored%20AI%20Opportunity%20Pilot" className="inline-flex items-center justify-center px-3.5 py-1.5 bg-[#4F68FF] text-white hover:bg-[#3D55DF] rounded-full text-sm font-medium">
+                <span className="sm:hidden">Discuss pilot</span><span className="hidden sm:inline">Discuss a tailored pilot</span>
                 <svg className="ml-1.5" width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-              </Button>
+              </a>
             ) : (
               <Button size="sm" onClick={() => setCurrentStep(s => s + 1)}>
                 Next
