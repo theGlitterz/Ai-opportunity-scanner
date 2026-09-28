@@ -65,7 +65,10 @@ export function AssessmentStep() {
       return;
     }
     const results = runProfitOpportunityEngine(state.profile, responses);
-    dispatch({ type: 'SET_RESULTS', results });
+    const id = typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    dispatch({ type: 'SET_RESULTS', results, scan: { id, completedAt: new Date().toISOString() } });
     dispatch({ type: 'SET_STEP', step: 'report' });
   }
 
@@ -88,9 +91,12 @@ export function AssessmentStep() {
         <div className="flex flex-col gap-3">{maturityQuestions.map((question, index) => <QuestionCard key={question.id} question={question} index={index + 9} />)}</div>
       </section>
       {state.ui.assessmentError && <div className="mt-5 px-4 py-3 bg-red-50 border border-red-200 rounded-[12px] text-sm text-red-700">{state.ui.assessmentError}</div>}
-      <div className="flex items-center justify-between pt-7 pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pt-7 pb-10">
         <Button variant="ghost" onClick={() => dispatch({ type: 'SET_STEP', step: 'profile' })}>← Back</Button>
-        <Button size="lg" onClick={generateReport} disabled={!allAnswered}>Generate profit opportunity report <span className="ml-2">→</span></Button>
+        <div className="max-w-md sm:text-right">
+          <p className="mb-3 text-xs leading-relaxed text-[#748094]">VRise uses your assessment responses to generate this report and understand where businesses see operational opportunity. Please do not enter confidential or sensitive information.</p>
+          <Button size="lg" onClick={generateReport} disabled={!allAnswered}>Generate profit opportunity report <span className="ml-2">→</span></Button>
+        </div>
       </div>
     </div>
   );

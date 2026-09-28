@@ -14,6 +14,8 @@ export type AppState = {
   responses: ScannerAnswers;
   ui: UIState;
   results: ProfitOpportunityReport | null;
+  scan: { id: string; completedAt: string } | null;
+  referralSource: string;
 };
 
 const initialState: AppState = {
@@ -21,6 +23,8 @@ const initialState: AppState = {
   responses: {},
   ui: { step: 'profile', profileErrors: {}, assessmentError: null },
   results: null,
+  scan: null,
+  referralSource: '',
 };
 
 type Action =
@@ -29,7 +33,8 @@ type Action =
   | { type: 'SET_STEP'; step: AppStep }
   | { type: 'SET_PROFILE_ERRORS'; errors: Partial<Record<keyof ScannerProfile, string>> }
   | { type: 'SET_ASSESSMENT_ERROR'; error: string | null }
-  | { type: 'SET_RESULTS'; results: ProfitOpportunityReport }
+  | { type: 'SET_RESULTS'; results: ProfitOpportunityReport; scan: { id: string; completedAt: string } }
+  | { type: 'SET_REFERRAL_SOURCE'; referralSource: string }
   | { type: 'RESET' };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -41,8 +46,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_STEP': return { ...state, ui: { ...state.ui, step: action.step } };
     case 'SET_PROFILE_ERRORS': return { ...state, ui: { ...state.ui, profileErrors: action.errors } };
     case 'SET_ASSESSMENT_ERROR': return { ...state, ui: { ...state.ui, assessmentError: action.error } };
-    case 'SET_RESULTS': return { ...state, results: action.results };
-    case 'RESET': return initialState;
+    case 'SET_RESULTS': return { ...state, results: action.results, scan: action.scan };
+    case 'SET_REFERRAL_SOURCE': return { ...state, referralSource: action.referralSource };
+    case 'RESET': return { ...initialState, referralSource: state.referralSource };
     default: return state;
   }
 }

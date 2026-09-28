@@ -8,12 +8,17 @@ import { ProgressBar } from './ProgressBar';
 import { VRiseLogo } from '../ui/VRiseLogo';
 
 function AppContent() {
-  const { state } = useAssessment();
+  const { state, dispatch } = useAssessment();
   const { step } = state.ui;
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [step]);
+
+  React.useEffect(() => {
+    const referralSource = new URLSearchParams(window.location.search).get('ref')?.trim().slice(0, 100) ?? '';
+    dispatch({ type: 'SET_REFERRAL_SOURCE', referralSource });
+  }, [dispatch]);
 
   return (
     <div className="min-h-screen bg-[#EEF2F8]">

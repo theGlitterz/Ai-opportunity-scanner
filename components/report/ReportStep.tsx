@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
 import { useAssessment } from '../../context/AssessmentContext';
 import { formatCompactCurrencyRange } from '../../lib/formatters';
 import { buildContextExplanation, buildLeverReason, buildRecommendationReason, getReportInputs } from '../../lib/report/presentation';
+import { sendScanEvent, type ScanSummary } from '../../lib/scan-client';
 import type { ProfitLeverResult } from '../../types';
 import { Button } from '../ui/Button';
 import { VRiseLogo } from '../ui/VRiseLogo';
@@ -52,9 +54,68 @@ function LeverCard({ lever, rank, reason }: { lever: ProfitLeverResult; rank: nu
   );
 }
 
+function ExecutiveReviewForm({ scan }: { scan: ScanSummary }) {
+  const [form, setForm] = React.useState({ name: '', email: '', company: scan.profile.companyName, role: '', website: '', marketingOptIn: false });
+  const [status, setStatus] = React.useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+
+  function updateField(event: React.ChangeEvent<HTMLInputElement>) {
+    const { name, value, type, checked } = event.target;
+    setForm(current => ({ ...current, [name]: type === 'checkbox' ? checked : value }));
+  }
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus('submitting');
+    try {
+      await sendScanEvent({ eventType: 'contact_requested', ...scan, contact: form });
+      setStatus('success');
+    } catch {
+      setStatus('error');
+    }
+  }
+
+  const inputClass = 'mt-1.5 w-full rounded-[10px] border border-[rgba(20,35,55,.16)] bg-white px-3 py-2.5 text-sm text-[#0D1726] outline-none transition focus:border-[#4F68FF] focus:ring-2 focus:ring-[rgba(79,104,255,.12)]';
+
+  return (
+    <section className="no-print mb-4 rounded-[18px] border border-[rgba(20,35,55,.10)] bg-white p-5 sm:p-6" style={{ boxShadow: 'var(--shadow-sm)' }}>
+      <h2 className="text-lg sm:text-xl font-bold font-heading text-[#0D1726]">Review these findings with VRise</h2>
+      <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-[#59667A]">Discuss the assumptions, validate the highest-value workflow, and determine whether it is worth taking into a focused pilot.</p>
+      {status === 'success' ? (
+        <div className="mt-5 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">Thank you. Your executive review request has been received, and VRise will respond using the details you provided.</div>
+      ) : (
+        <form className="mt-5" onSubmit={submit}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-[#3B4960]">Name<span className="text-red-600"> *</span><input className={inputClass} name="name" value={form.name} onChange={updateField} required maxLength={150} autoComplete="name" /></label>
+            <label className="text-xs font-semibold text-[#3B4960]">Work email<span className="text-red-600"> *</span><input className={inputClass} name="email" value={form.email} onChange={updateField} required maxLength={254} type="email" autoComplete="email" /></label>
+            <label className="text-xs font-semibold text-[#3B4960]">Company<input className={inputClass} name="company" value={form.company} onChange={updateField} maxLength={200} autoComplete="organization" /></label>
+            <label className="text-xs font-semibold text-[#3B4960]">Role <span className="font-normal text-[#748094]">(optional)</span><input className={inputClass} name="role" value={form.role} onChange={updateField} maxLength={150} autoComplete="organization-title" /></label>
+          </div>
+          <div className="absolute -left-[10000px] h-px w-px overflow-hidden" aria-hidden="true"><label>Website<input name="website" value={form.website} onChange={updateField} tabIndex={-1} autoComplete="off" /></label></div>
+          <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm text-[#3B4960]"><input className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#4F68FF]" type="checkbox" name="marketingOptIn" checked={form.marketingOptIn} onChange={updateField} /><span>Send me occasional practical AI insights from VRise.</span></label>
+          <p className="mt-3 text-xs leading-relaxed text-[#748094]">We’ll use these details to respond about this assessment. We won’t add you to a marketing list unless you select the option above.</p>
+          {status === 'error' && <div className="mt-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert">We couldn’t submit your request. Please check your details and try again.</div>}
+          <button type="submit" disabled={status === 'submitting'} className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-[#4F68FF] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3D55DF] disabled:cursor-wait disabled:opacity-60 sm:w-auto">{status === 'submitting' ? 'Submitting…' : 'Request an executive review'}</button>
+        </form>
+      )}
+    </section>
+  );
+}
+
 export function ReportStep() {
   const { state, dispatch } = useAssessment();
-  const { results, profile, responses } = state;
+  const { results, profile, responses, scan, referralSource } = state;
+  const notificationStarted = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!results || !scan || notificationStarted.current) return;
+    const storageKey = `vrise-scan-notified:${scan.id}`;
+    if (sessionStorage.getItem(storageKey)) return;
+    notificationStarted.current = true;
+    sendScanEvent({ eventType: 'scan_completed', scanId: scan.id, completedAt: scan.completedAt, referralSource, profile, answers: responses, report: results })
+      .then(() => sessionStorage.setItem(storageKey, '1'))
+      .catch(() => { notificationStarted.current = false; });
+  }, [results, scan, referralSource, profile, responses]);
+
   if (!results) return null;
 
   const reportInputs = getReportInputs(profile, responses);
@@ -71,6 +132,7 @@ export function ReportStep() {
   const topLeverSummary = topLeverNames.length === 3
     ? `${topLeverNames[0]}, ${topLeverNames[1]}, and ${topLeverNames[2]}`
     : topLeverNames.join(' and ');
+  const scanSummary: ScanSummary | null = scan ? { scanId: scan.id, completedAt: scan.completedAt, referralSource, profile, answers: responses, report: results } : null;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -128,6 +190,8 @@ export function ReportStep() {
         </section>
 
         <section className="mb-9 no-print"><SectionHeading title="Explore example AI workflows" copy="Open any function to walk through incoming work, AI output, human review, and an illustrative pilot outcome." /><WorkflowExplorer /></section>
+
+        {scanSummary && <ExecutiveReviewForm scan={scanSummary} />}
 
         <section className="no-print rounded-[20px] p-6 sm:p-7 text-white mb-7" style={DARK_PANEL_STYLE}>
           <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight">Discuss your AI opportunity report</h2>
