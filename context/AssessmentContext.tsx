@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useReducer } from 'react';
-import type { AppStep, ProfitOpportunityReport, ScannerAnswers, ScannerAnswerValue, ScannerProfile } from '../types';
+import type { AppStep, ProfitOpportunityReport, ReportDeliveryState, ReportDeliveryStatus, ScannerAnswers, ScannerAnswerValue, ScannerProfile } from '../types';
 
 type UIState = {
   step: AppStep;
@@ -16,6 +16,7 @@ export type AppState = {
   results: ProfitOpportunityReport | null;
   scan: { id: string; completedAt: string } | null;
   referralSource: string;
+  delivery: ReportDeliveryState;
 };
 
 const initialState: AppState = {
@@ -25,6 +26,7 @@ const initialState: AppState = {
   results: null,
   scan: null,
   referralSource: '',
+  delivery: { email: '', status: 'idle', error: null, reportPromptDismissed: false, printPromptDismissed: false, printPromptSeen: false },
 };
 
 type Action =
@@ -35,6 +37,11 @@ type Action =
   | { type: 'SET_ASSESSMENT_ERROR'; error: string | null }
   | { type: 'SET_RESULTS'; results: ProfitOpportunityReport; scan: { id: string; completedAt: string } }
   | { type: 'SET_REFERRAL_SOURCE'; referralSource: string }
+  | { type: 'SET_DELIVERY_EMAIL'; email: string }
+  | { type: 'SET_DELIVERY_STATUS'; status: ReportDeliveryStatus; error?: string | null }
+  | { type: 'DISMISS_REPORT_DELIVERY_PROMPT' }
+  | { type: 'DISMISS_PRINT_DELIVERY_PROMPT' }
+  | { type: 'MARK_PRINT_PROMPT_SEEN' }
   | { type: 'RESET' };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -48,6 +55,11 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_ASSESSMENT_ERROR': return { ...state, ui: { ...state.ui, assessmentError: action.error } };
     case 'SET_RESULTS': return { ...state, results: action.results, scan: action.scan };
     case 'SET_REFERRAL_SOURCE': return { ...state, referralSource: action.referralSource };
+    case 'SET_DELIVERY_EMAIL': return { ...state, delivery: { ...state.delivery, email: action.email, error: null, status: state.delivery.status === 'sent' ? 'sent' : 'idle' } };
+    case 'SET_DELIVERY_STATUS': return { ...state, delivery: { ...state.delivery, status: action.status, error: action.error ?? null } };
+    case 'DISMISS_REPORT_DELIVERY_PROMPT': return { ...state, delivery: { ...state.delivery, reportPromptDismissed: true } };
+    case 'DISMISS_PRINT_DELIVERY_PROMPT': return { ...state, delivery: { ...state.delivery, printPromptDismissed: true } };
+    case 'MARK_PRINT_PROMPT_SEEN': return { ...state, delivery: { ...state.delivery, printPromptSeen: true } };
     case 'RESET': return { ...initialState, referralSource: state.referralSource };
     default: return state;
   }

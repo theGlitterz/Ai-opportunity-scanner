@@ -404,8 +404,8 @@ export function PilotDemoModal({ demo, onClose }: Props) {
 
           <div className="flex items-center gap-2">
             {isLast ? (
-              <a href="mailto:hello@vrise.tech?subject=Discuss%20a%20tailored%20AI%20Opportunity%20Pilot" className="inline-flex items-center justify-center px-3.5 py-1.5 bg-[#4F68FF] text-white hover:bg-[#3D55DF] rounded-full text-sm font-medium">
-                <span className="sm:hidden">Discuss pilot</span><span className="hidden sm:inline">Discuss a tailored pilot</span>
+              <a href="https://cal.com/vrise/vrise-consulting-session" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-3.5 py-1.5 bg-[#4F68FF] text-white hover:bg-[#3D55DF] rounded-full text-sm font-medium">
+                <span className="sm:hidden">Free consultation</span><span className="hidden sm:inline">Book a free tailored-pilot consultation</span>
                 <svg className="ml-1.5" width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>

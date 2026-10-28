@@ -9,12 +9,17 @@ import { Input, Select } from '../ui/FormFields';
 const REQUIRED_FIELDS: (keyof ScannerProfile)[] = ['sector', 'revenueBand', 'employeeBand', 'geography', 'revenueModel', 'operatingModel'];
 
 export function ProfileStep() {
-  const { dispatch } = useAssessment();
+  const { state, dispatch } = useAssessment();
   const { profile, errors, setField } = useProfile();
 
   function handleContinue() {
     const nextErrors: Partial<Record<keyof ScannerProfile, string>> = {};
     for (const field of REQUIRED_FIELDS) if (!profile[field]) nextErrors[field] = 'Select an option to continue';
+    const email = state.delivery.email.trim();
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+      dispatch({ type: 'SET_DELIVERY_STATUS', status: 'error', error: 'Enter a valid email address or leave this field blank.' });
+      return;
+    }
     if (Object.keys(nextErrors).length) {
       dispatch({ type: 'SET_PROFILE_ERRORS', errors: nextErrors });
       return;
@@ -32,7 +37,11 @@ export function ProfileStep() {
 
       <div className="bg-white border border-[rgba(20,35,55,0.10)] rounded-[18px] p-5 sm:p-7" style={{ boxShadow: 'var(--shadow-md)' }}>
         <div className="mb-6 pb-6 border-b border-[rgba(20,35,55,0.08)]">
-          <Input label="Company name (optional)" placeholder="e.g. Acme Group" value={profile.companyName} onChange={event => setField('companyName', event.target.value)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <Input label="Company name" placeholder="e.g. Acme Group" value={profile.companyName} onChange={event => setField('companyName', event.target.value)} />
+            <Input label="Email address" placeholder="you@company.com" type="email" autoComplete="email" maxLength={254} value={state.delivery.email} onChange={event => dispatch({ type: 'SET_DELIVERY_EMAIL', email: event.target.value })} error={state.delivery.status === 'error' ? state.delivery.error ?? undefined : undefined} />
+          </div>
+          <p className="mt-2 text-[10px] text-[#748094]"><a className="font-semibold text-[#4F68FF] hover:underline" href="/privacy" target="_blank" rel="noopener noreferrer">Privacy notice</a></p>
         </div>
 
         <section>

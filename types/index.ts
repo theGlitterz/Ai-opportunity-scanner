@@ -285,6 +285,17 @@ export type ScannerProfile = {
   operatingModel: ScannerOperatingModel | '';
 };
 
+export type ReportDeliveryStatus = 'idle' | 'sending' | 'sent' | 'error';
+
+export type ReportDeliveryState = {
+  email: string;
+  status: ReportDeliveryStatus;
+  error: string | null;
+  reportPromptDismissed: boolean;
+  printPromptDismissed: boolean;
+  printPromptSeen: boolean;
+};
+
 export type ScannerAnswerValue = string | string[];
 export type ScannerAnswers = Partial<Record<string, ScannerAnswerValue>>;
 

@@ -77,9 +77,9 @@ function ExecutiveReviewForm({ scan }: { scan: ScanSummary }) {
   const inputClass = 'mt-1.5 w-full rounded-[10px] border border-[rgba(20,35,55,.16)] bg-white px-3 py-2.5 text-sm text-[#0D1726] outline-none transition focus:border-[#4F68FF] focus:ring-2 focus:ring-[rgba(79,104,255,.12)]';
 
   return (
-    <section className="no-print mb-4 rounded-[18px] border border-[rgba(20,35,55,.10)] bg-white p-5 sm:p-6" style={{ boxShadow: 'var(--shadow-sm)' }}>
-      <h2 className="text-lg sm:text-xl font-bold font-heading text-[#0D1726]">Review these findings with VRise</h2>
-      <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-[#59667A]">Discuss the assumptions, validate the highest-value workflow, and determine whether it is worth taking into a focused pilot.</p>
+    <section className="no-print mb-5 rounded-[18px] border border-[rgba(20,35,55,.09)] bg-white p-5 sm:p-6" style={{ boxShadow: 'var(--shadow-sm)' }}>
+      <h2 className="text-lg sm:text-xl font-bold font-heading text-[#0D1726]">Review these findings in a free consultation</h2>
+      <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-[#59667A]">Discuss the assumptions, validate the highest-value workflow, and decide whether a focused pilot is worth exploring.</p>
       {status === 'success' ? (
         <div className="mt-5 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">Thank you. Your executive review request has been received, and VRise will respond using the details you provided.</div>
       ) : (
@@ -94,9 +94,47 @@ function ExecutiveReviewForm({ scan }: { scan: ScanSummary }) {
           <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm text-[#3B4960]"><input className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#4F68FF]" type="checkbox" name="marketingOptIn" checked={form.marketingOptIn} onChange={updateField} /><span>Send me occasional practical AI insights from VRise.</span></label>
           <p className="mt-3 text-xs leading-relaxed text-[#748094]">We’ll use these details to respond about this assessment. We won’t add you to a marketing list unless you select the option above.</p>
           {status === 'error' && <div className="mt-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert">We couldn’t submit your request. Please check your details and try again.</div>}
-          <button type="submit" disabled={status === 'submitting'} className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-[#4F68FF] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3D55DF] disabled:cursor-wait disabled:opacity-60 sm:w-auto">{status === 'submitting' ? 'Submitting…' : 'Request an executive review'}</button>
+          <button type="submit" disabled={status === 'submitting'} className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-[#4F68FF] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3D55DF] disabled:cursor-wait disabled:opacity-60 sm:w-auto">{status === 'submitting' ? 'Submitting…' : 'Request a free consultation'}</button>
         </form>
       )}
+    </section>
+  );
+}
+
+function ReportEmailCapture({ scan, compact = false, onDismiss }: { scan: ScanSummary; compact?: boolean; onDismiss: () => void }) {
+  const { state, dispatch } = useAssessment();
+  const { delivery } = state;
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = delivery.email.trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      dispatch({ type: 'SET_DELIVERY_STATUS', status: 'error', error: 'Enter a valid email address.' });
+      return;
+    }
+    dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sending' });
+    try {
+      await sendScanEvent({ eventType: 'report_delivery_requested', ...scan, deliveryEmail: email });
+      dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sent' });
+    } catch {
+      dispatch({ type: 'SET_DELIVERY_STATUS', status: 'error', error: 'We could not email the report right now. Your results are safe here—please try again.' });
+    }
+  }
+
+  if (delivery.status === 'sent') return null;
+
+  return (
+    <section className={`no-print relative rounded-[16px] border border-[rgba(20,35,55,.09)] bg-[#F8FAFD] ${compact ? 'p-4' : 'p-5 sm:p-6'}`} aria-labelledby={compact ? 'print-email-title' : 'report-email-title'}>
+      <button type="button" onClick={onDismiss} className="absolute right-3 top-3 rounded-full px-2 py-1 text-sm text-[#748094] hover:bg-[rgba(20,35,55,.06)]" aria-label="Dismiss email invitation">×</button>
+      <h2 id={compact ? 'print-email-title' : 'report-email-title'} className={`${compact ? 'text-base' : 'text-lg sm:text-xl'} font-bold font-heading text-[#0D1726]`}>Your opportunity report is ready</h2>
+      <p className="mt-1.5 pr-7 text-sm leading-relaxed text-[#59667A]">Keep a copy of your results. Enter your email and we’ll send you the completed report.</p>
+      <form className="mt-4 flex flex-col gap-2.5 sm:flex-row" onSubmit={submit}>
+        <label className="sr-only" htmlFor={compact ? 'print-delivery-email' : 'report-delivery-email'}>Email address</label>
+        <input id={compact ? 'print-delivery-email' : 'report-delivery-email'} type="email" required maxLength={254} autoComplete="email" placeholder="you@company.com" value={delivery.email} onChange={event => dispatch({ type: 'SET_DELIVERY_EMAIL', email: event.target.value })} className="w-full rounded-[12px] border border-[rgba(20,35,55,.16)] bg-white px-3 py-2.5 text-sm text-[#0D1726] outline-none transition focus:border-[#4F68FF] focus:ring-2 focus:ring-[rgba(79,104,255,.12)] sm:max-w-sm" />
+        <button type="submit" disabled={delivery.status === 'sending'} className="inline-flex items-center justify-center rounded-full bg-[#4F68FF] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3D55DF] disabled:cursor-wait disabled:opacity-60">{delivery.status === 'sending' ? 'Sending…' : 'Email my report'}</button>
+      </form>
+      <p className="mt-2 text-[10px] text-[#748094]"><a className="font-semibold text-[#4F68FF] hover:underline" href="/privacy" target="_blank" rel="noopener noreferrer">Privacy notice</a></p>
+      {delivery.status === 'error' && <div className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700" role="alert">{delivery.error}</div>}
     </section>
   );
 }
@@ -105,16 +143,26 @@ export function ReportStep() {
   const { state, dispatch } = useAssessment();
   const { results, profile, responses, scan, referralSource } = state;
   const notificationStarted = React.useRef(false);
+  const emailProvidedAtCompletion = React.useRef(Boolean(state.delivery.email.trim()));
+  const [showPrintInvite, setShowPrintInvite] = React.useState(false);
 
   React.useEffect(() => {
     if (!results || !scan || notificationStarted.current) return;
     const storageKey = `vrise-scan-notified:${scan.id}`;
     if (sessionStorage.getItem(storageKey)) return;
     notificationStarted.current = true;
-    sendScanEvent({ eventType: 'scan_completed', scanId: scan.id, completedAt: scan.completedAt, referralSource, profile, answers: responses, report: results })
-      .then(() => sessionStorage.setItem(storageKey, '1'))
-      .catch(() => { notificationStarted.current = false; });
-  }, [results, scan, referralSource, profile, responses]);
+    const deliveryEmail = state.delivery.email.trim() || undefined;
+    if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sending' });
+    sendScanEvent({ eventType: 'scan_completed', scanId: scan.id, completedAt: scan.completedAt, referralSource, profile, answers: responses, report: results, deliveryEmail })
+      .then(() => {
+        sessionStorage.setItem(storageKey, '1');
+        if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sent' });
+      })
+      .catch(() => {
+        notificationStarted.current = false;
+        if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'error', error: 'We could not email the report right now. Your results are safe here—please try again.' });
+      });
+  }, [results, scan, referralSource, profile, responses, state.delivery.email, dispatch]);
 
   if (!results) return null;
 
@@ -134,12 +182,22 @@ export function ReportStep() {
     : topLeverNames.join(' and ');
   const scanSummary: ScanSummary | null = scan ? { scanId: scan.id, completedAt: scan.completedAt, referralSource, profile, answers: responses, report: results } : null;
 
+  function printReport() {
+    window.print();
+    if (!state.delivery.email.trim() && !state.delivery.printPromptDismissed && !state.delivery.printPromptSeen) {
+      dispatch({ type: 'MARK_PRINT_PROMPT_SEEN' });
+      setShowPrintInvite(true);
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'SET_STEP', step: 'assessment' })}>← Back to diagnostic</Button>
-        <div className="flex gap-2"><Button variant="secondary" size="sm" onClick={() => window.print()}>Print / Save PDF</Button><Button size="sm" onClick={() => dispatch({ type: 'RESET' })}>New scan</Button></div>
+        <Button size="sm" onClick={() => dispatch({ type: 'RESET' })}>New scan</Button>
       </div>
+
+      {scanSummary && !showPrintInvite && state.delivery.status !== 'sent' && (!emailProvidedAtCompletion.current || state.delivery.status === 'error') && !state.delivery.reportPromptDismissed && <div className="no-print mb-6"><ReportEmailCapture scan={scanSummary} onDismiss={() => dispatch({ type: 'DISMISS_REPORT_DELIVERY_PROMPT' })} /></div>}
 
       <div id="report-content">
         <header className="flex items-start justify-between gap-5 mb-5 pb-4 border-b border-[rgba(20,35,55,.10)]">
@@ -189,22 +247,38 @@ export function ReportStep() {
           <p className="text-xs text-[#59667A] mt-4 pt-4 border-t border-[rgba(79,104,255,.14)]"><strong className="text-[#0D1726]">Client output:</strong> {results.recommendation.output}</p>
         </section>
 
-        <section className="mb-9 no-print"><SectionHeading title="Explore example AI workflows" copy="Open any function to walk through incoming work, AI output, human review, and an illustrative pilot outcome." /><WorkflowExplorer /></section>
-
-        {scanSummary && <ExecutiveReviewForm scan={scanSummary} />}
-
-        <section className="no-print rounded-[20px] p-6 sm:p-7 text-white mb-7" style={DARK_PANEL_STYLE}>
-          <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight">Discuss your AI opportunity report</h2>
-          <p className="text-sm text-white/70 mt-2 mb-5 max-w-2xl leading-relaxed">Walk through the estimate, validate the biggest workflow opportunity, and decide whether a paid pilot is worth doing.</p>
-          <div className="flex flex-col sm:flex-row gap-2.5"><a href="https://cal.com/vrise/vrise-consulting-session" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-5 py-2.5 bg-white text-[#0D1726] rounded-full text-sm font-semibold hover:bg-white/90">Discuss this report</a><a href="https://cal.com/vrise/vrise-consulting-session" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-5 py-2.5 border border-white/25 text-white rounded-full text-sm font-semibold hover:bg-white/10">Book a VRise AI Opportunity Pilot</a></div>
-        </section>
-
         <section className="p-4 bg-[rgba(20,35,55,.035)] border border-[rgba(20,35,55,.09)] rounded-[14px] print-card">
           <h2 className="text-sm font-bold font-heading text-[#0D1726] mb-1.5">How to read these numbers</h2>
           <p className="text-xs text-[#59667A] leading-relaxed">These estimates are indicative and based on your selected company profile, sector patterns, operating maturity, and AI readiness. They are not guaranteed savings or a financial forecast. Vrise validates the opportunity during a paid pilot using real workflows, tools, and business data.</p>
           <ul className="space-y-1 mt-2">{results.assumptions.map(item => <li key={item} className="text-[10px] text-[#748094] leading-relaxed">• {item}</li>)}</ul>
         </section>
       </div>
+
+      <div className="no-print my-9 border-y border-[rgba(20,35,55,.08)] py-6">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-[#0D1726]">Finished reviewing your report?</p>
+            <p className="mt-0.5 text-xs text-[#748094]">Save a copy now, or have the completed report sent to your inbox.</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={printReport}>Print / Save PDF</Button>
+        </div>
+        {scanSummary && showPrintInvite && !state.delivery.email.trim() && !state.delivery.printPromptDismissed && <ReportEmailCapture compact scan={scanSummary} onDismiss={() => { setShowPrintInvite(false); dispatch({ type: 'DISMISS_PRINT_DELIVERY_PROMPT' }); }} />}
+      </div>
+
+      <section className="mb-9 no-print rounded-[18px] border border-[rgba(20,35,55,.08)] bg-white/55 p-5 sm:p-6">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#4F68FF]">See it in action</p>
+        <SectionHeading title="Explore interactive AI workflow examples" copy="Pick a business area and step through a realistic workflow from incoming work to AI output, human review, and an illustrative pilot outcome." />
+        <WorkflowExplorer />
+      </section>
+
+      {scanSummary && <ExecutiveReviewForm scan={scanSummary} />}
+
+      <section className="no-print rounded-[20px] p-6 sm:p-7 text-white mb-7" style={DARK_PANEL_STYLE}>
+        <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#8EA5FF] mb-2">Free consultation</p>
+        <h2 className="text-xl sm:text-2xl font-bold font-heading tracking-tight">Discuss your AI opportunity report</h2>
+        <p className="text-sm text-white/70 mt-2 mb-5 max-w-2xl leading-relaxed">Walk through the estimate, validate the biggest workflow opportunity, and decide whether a paid pilot is worth exploring. The initial consultation is free.</p>
+        <div className="flex flex-col sm:flex-row gap-2.5"><a href="https://cal.com/vrise/vrise-consulting-session" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-5 py-2.5 bg-white text-[#0D1726] rounded-full text-sm font-semibold hover:bg-white/90">Book a free consultation</a><a href="https://cal.com/vrise/vrise-consulting-session" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-5 py-2.5 border border-white/25 text-white rounded-full text-sm font-semibold hover:bg-white/10">Free consultation: discuss a pilot</a></div>
+      </section>
     </div>
   );
 }
