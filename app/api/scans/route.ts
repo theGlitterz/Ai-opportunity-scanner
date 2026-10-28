@@ -74,6 +74,17 @@ const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT = Number(process.env.SCAN_RATE_LIMIT || 10);
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
+type EmailSendResult = {
+  accepted: boolean;
+  skipped?: boolean;
+  id?: string;
+  status?: number;
+  error?: string;
+};
+
+const emailResults = new Map<string, { expiresAt: number; promise: Promise<EmailSendResult> }>();
+const EMAIL_RESULT_TTL_MS = 15 * 60 * 1000;
+
 function isRateLimited(request: Request): boolean {
   const rawIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
   const key = createHash('sha256').update(rawIp.trim()).digest('hex').slice(0, 24);
@@ -120,16 +131,35 @@ function buildEmail(payload: ScanPayload): string {
 }
 
 function visitorEmail(payload: ScanPayload): string {
-  return `<div style="font-family:Arial,sans-serif;color:#172033;line-height:1.6;max-width:680px"><h1>Your VRise opportunity report</h1><p>Your completed AI Profit Opportunity Report is attached.</p><p>This service message was sent because this address was provided for report delivery. It does not consent to a follow-up and you have not been added to recurring marketing.</p><p>For questions about your report or personal data, reply to this email or contact <a href="mailto:vikas@vrise.tech">vikas@vrise.tech</a>.</p><p><a href="https://scanner.vrise.tech/privacy">Privacy notice</a></p></div>`;
+  return `<div style="font-family:Arial,sans-serif;color:#172033;line-height:1.6;max-width:680px"><h1>Your VRise opportunity report</h1><p>Your completed AI Profit Opportunity Report is attached.</p><p>This service message was sent because this address was provided for report delivery. It does not consent to a follow-up and you have not been added to recurring marketing.</p><p>For questions about your report or personal data, reply to this email or contact <a href="mailto:contact@vrise.tech">contact@vrise.tech</a>.</p><p><a href="https://scanner.vrise.tech/privacy">Privacy notice</a></p></div>`;
 }
 
-async function sendResendEmail(apiKey: string, body: Record<string, unknown>, idempotencyKey: string): Promise<void> {
-  const response = await fetch(process.env.RESEND_API_URL || 'https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey.slice(0, 256) },
-    body: JSON.stringify(body),
+async function sendResendEmail(apiKey: string, body: Record<string, unknown>, idempotencyKey: string): Promise<EmailSendResult> {
+  const cached = emailResults.get(idempotencyKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.promise;
+
+  const promise = (async (): Promise<EmailSendResult> => {
+    try {
+      const response = await fetch(process.env.RESEND_API_URL || 'https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey.slice(0, 256) },
+        body: JSON.stringify(body),
+      });
+      let providerBody: unknown = null;
+      try { providerBody = await response.json(); } catch { /* provider may return an empty body */ }
+      if (!response.ok) return { accepted: false, status: response.status, error: isObject(providerBody) && typeof providerBody.message === 'string' ? providerBody.message : 'provider_error' };
+      return { accepted: true, id: isObject(providerBody) && typeof providerBody.id === 'string' ? providerBody.id : undefined, status: response.status };
+    } catch {
+      return { accepted: false, error: 'provider_unreachable' };
+    }
+  })();
+
+  const trackedPromise = promise.then(result => {
+    if (!result.accepted) emailResults.delete(idempotencyKey);
+    return result;
   });
-  if (!response.ok) throw new Error(`provider:${response.status}`);
+  emailResults.set(idempotencyKey, { expiresAt: Date.now() + EMAIL_RESULT_TTL_MS, promise: trackedPromise });
+  return trackedPromise;
 }
 
 export async function POST(request: Request) {
@@ -150,8 +180,13 @@ export async function POST(request: Request) {
     const apiKey = process.env.RESEND_API_KEY;
     const to = process.env.SCAN_NOTIFICATION_TO;
     const from = process.env.SCAN_NOTIFICATION_FROM;
-    if (!apiKey || !to || !from) {
+    const replyTo = process.env.SCAN_NOTIFICATION_REPLY_TO || 'contact@vrise.tech';
+    if (!apiKey || !to || !from || !EMAIL_PATTERN.test(replyTo)) {
       console.error('Scan notification unavailable: Resend configuration is incomplete.');
+      return NextResponse.json({ error: 'Notification service is unavailable.' }, { status: 503 });
+    }
+    if (/@resend\.dev\b/i.test(from)) {
+      console.error('Scan notification unavailable: configure a verified production sender domain.');
       return NextResponse.json({ error: 'Notification service is unavailable.' }, { status: 503 });
     }
 
@@ -163,15 +198,22 @@ export async function POST(request: Request) {
     const attachment = pdf ? { filename: `vrise-opportunity-report-${scanPayload.scanId.slice(0, 36)}.pdf`, content: pdf.toString('base64') } : null;
     const common = attachment ? { from, attachments: [attachment] } : { from };
     const emailHash = scanPayload.deliveryEmail ? createHash('sha256').update(scanPayload.deliveryEmail).digest('hex').slice(0, 24) : 'anonymous';
+    const adminReplyTo = scanPayload.deliveryEmail || scanPayload.contact?.email;
 
-    await sendResendEmail(apiKey, { ...common, to: [to], subject, html: buildEmail(scanPayload), reply_to: scanPayload.deliveryEmail }, `${scanPayload.scanId}:vrise:${scanPayload.eventType}:${emailHash}`);
-    if (scanPayload.deliveryEmail && scanPayload.eventType !== 'contact_requested') {
-      await sendResendEmail(apiKey, { ...common, to: [scanPayload.deliveryEmail], subject: 'Your VRise AI Profit Opportunity Report', html: visitorEmail(scanPayload), reply_to: 'vikas@vrise.tech' }, `${scanPayload.scanId}:visitor:${emailHash}`);
-    }
-    return NextResponse.json({ ok: true, delivered: Boolean(scanPayload.deliveryEmail && scanPayload.eventType !== 'contact_requested') });
-  } catch (error) {
-    const providerStatus = error instanceof Error && error.message.startsWith('provider:') ? error.message.slice(9) : 'unexpected';
-    console.error(`Scan notification failed (${providerStatus}).`);
+    const shouldSendAdmin = scanPayload.eventType !== 'report_delivery_requested';
+    const shouldSendCustomer = Boolean(scanPayload.deliveryEmail && scanPayload.eventType !== 'contact_requested');
+    const adminPromise = shouldSendAdmin
+      ? sendResendEmail(apiKey, { ...common, to: [to], subject, html: buildEmail(scanPayload), ...(adminReplyTo ? { reply_to: adminReplyTo } : {}) }, `${scanPayload.scanId}:vrise:${scanPayload.eventType}:${emailHash}`)
+      : Promise.resolve<EmailSendResult>({ accepted: false, skipped: true });
+    const customerPromise = shouldSendCustomer
+      ? sendResendEmail(apiKey, { ...common, to: [scanPayload.deliveryEmail!], subject: 'Your VRise AI Profit Opportunity Report', html: visitorEmail(scanPayload), reply_to: replyTo }, `${scanPayload.scanId}:visitor:${emailHash}`)
+      : Promise.resolve<EmailSendResult>({ accepted: false, skipped: true });
+    const [admin, customer] = await Promise.all([adminPromise, customerPromise]);
+    const ok = (!shouldSendAdmin || admin.accepted) && (!shouldSendCustomer || customer.accepted);
+    if (!ok) console.error(`Scan notification delivery failed (admin:${admin.status ?? 'unavailable'}, customer:${customer.status ?? 'unavailable'}).`);
+    return NextResponse.json({ ok, status: ok ? 'accepted' : 'failed', admin, customer, accepted: ok, delivered: false }, { status: ok ? 200 : 502 });
+  } catch {
+    console.error('Scan notification failed unexpectedly.');
     return NextResponse.json({ error: 'Notification could not be delivered.' }, { status: 500 });
   }
 }

@@ -55,7 +55,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_ASSESSMENT_ERROR': return { ...state, ui: { ...state.ui, assessmentError: action.error } };
     case 'SET_RESULTS': return { ...state, results: action.results, scan: action.scan };
     case 'SET_REFERRAL_SOURCE': return { ...state, referralSource: action.referralSource };
-    case 'SET_DELIVERY_EMAIL': return { ...state, delivery: { ...state.delivery, email: action.email, error: null, status: state.delivery.status === 'sent' ? 'sent' : 'idle' } };
+    case 'SET_DELIVERY_EMAIL': return { ...state, delivery: { ...state.delivery, email: action.email, error: null, status: state.delivery.status === 'accepted' ? 'accepted' : 'idle' } };
     case 'SET_DELIVERY_STATUS': return { ...state, delivery: { ...state.delivery, status: action.status, error: action.error ?? null } };
     case 'DISMISS_REPORT_DELIVERY_PROMPT': return { ...state, delivery: { ...state.delivery, reportPromptDismissed: true } };
     case 'DISMISS_PRINT_DELIVERY_PROMPT': return { ...state, delivery: { ...state.delivery, printPromptDismissed: true } };

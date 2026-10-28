@@ -285,7 +285,7 @@ export type ScannerProfile = {
   operatingModel: ScannerOperatingModel | '';
 };
 
-export type ReportDeliveryStatus = 'idle' | 'sending' | 'sent' | 'error';
+export type ReportDeliveryStatus = 'idle' | 'sending' | 'accepted' | 'error';
 
 export type ReportDeliveryState = {
   email: string;

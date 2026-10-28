@@ -115,13 +115,13 @@ function ReportEmailCapture({ scan, compact = false, onDismiss }: { scan: ScanSu
     dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sending' });
     try {
       await sendScanEvent({ eventType: 'report_delivery_requested', ...scan, deliveryEmail: email });
-      dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sent' });
+      dispatch({ type: 'SET_DELIVERY_STATUS', status: 'accepted' });
     } catch {
       dispatch({ type: 'SET_DELIVERY_STATUS', status: 'error', error: 'We could not email the report right now. Your results are safe here—please try again.' });
     }
   }
 
-  if (delivery.status === 'sent') return null;
+  if (delivery.status === 'accepted') return null;
 
   return (
     <section className={`no-print relative rounded-[16px] border border-[rgba(20,35,55,.09)] bg-[#F8FAFD] ${compact ? 'p-4' : 'p-5 sm:p-6'}`} aria-labelledby={compact ? 'print-email-title' : 'report-email-title'}>
@@ -149,17 +149,21 @@ export function ReportStep() {
   React.useEffect(() => {
     if (!results || !scan || notificationStarted.current) return;
     const storageKey = `vrise-scan-notified:${scan.id}`;
-    if (sessionStorage.getItem(storageKey)) return;
+    const inFlightKey = `${storageKey}:in-flight`;
+    if (sessionStorage.getItem(storageKey) || sessionStorage.getItem(inFlightKey)) return;
     notificationStarted.current = true;
+    sessionStorage.setItem(inFlightKey, '1');
     const deliveryEmail = state.delivery.email.trim() || undefined;
     if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sending' });
     sendScanEvent({ eventType: 'scan_completed', scanId: scan.id, completedAt: scan.completedAt, referralSource, profile, answers: responses, report: results, deliveryEmail })
       .then(() => {
         sessionStorage.setItem(storageKey, '1');
-        if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sent' });
+        sessionStorage.removeItem(inFlightKey);
+        if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'accepted' });
       })
       .catch(() => {
         notificationStarted.current = false;
+        sessionStorage.removeItem(inFlightKey);
         if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'error', error: 'We could not email the report right now. Your results are safe here—please try again.' });
       });
   }, [results, scan, referralSource, profile, responses, state.delivery.email, dispatch]);
@@ -197,7 +201,7 @@ export function ReportStep() {
         <Button size="sm" onClick={() => dispatch({ type: 'RESET' })}>New scan</Button>
       </div>
 
-      {scanSummary && !showPrintInvite && state.delivery.status !== 'sent' && (!emailProvidedAtCompletion.current || state.delivery.status === 'error') && !state.delivery.reportPromptDismissed && <div className="no-print mb-6"><ReportEmailCapture scan={scanSummary} onDismiss={() => dispatch({ type: 'DISMISS_REPORT_DELIVERY_PROMPT' })} /></div>}
+      {scanSummary && !showPrintInvite && state.delivery.status !== 'accepted' && (!emailProvidedAtCompletion.current || state.delivery.status === 'error') && !state.delivery.reportPromptDismissed && <div className="no-print mb-6"><ReportEmailCapture scan={scanSummary} onDismiss={() => dispatch({ type: 'DISMISS_REPORT_DELIVERY_PROMPT' })} /></div>}
 
       <div id="report-content">
         <header className="flex items-start justify-between gap-5 mb-5 pb-4 border-b border-[rgba(20,35,55,.10)]">
