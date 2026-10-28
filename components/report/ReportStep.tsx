@@ -101,7 +101,8 @@ function ExecutiveReviewForm({ scan }: { scan: ScanSummary }) {
   );
 }
 
-function ReportEmailCapture({ scan, compact = false, onDismiss }: { scan: ScanSummary; compact?: boolean; onDismiss: () => void }) {
+/* REPORT_EMAIL_CAPTURE_REMOVED */
+/*
   const { state, dispatch } = useAssessment();
   const { delivery } = state;
 
@@ -138,13 +139,12 @@ function ReportEmailCapture({ scan, compact = false, onDismiss }: { scan: ScanSu
     </section>
   );
 }
+*/
 
 export function ReportStep() {
   const { state, dispatch } = useAssessment();
   const { results, profile, responses, scan, referralSource } = state;
   const notificationStarted = React.useRef(false);
-  const emailProvidedAtCompletion = React.useRef(Boolean(state.delivery.email.trim()));
-  const [showPrintInvite, setShowPrintInvite] = React.useState(false);
 
   React.useEffect(() => {
     if (!results || !scan || notificationStarted.current) return;
@@ -154,17 +154,14 @@ export function ReportStep() {
     notificationStarted.current = true;
     sessionStorage.setItem(inFlightKey, '1');
     const deliveryEmail = state.delivery.email.trim() || undefined;
-    if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'sending' });
     sendScanEvent({ eventType: 'scan_completed', scanId: scan.id, completedAt: scan.completedAt, referralSource, profile, answers: responses, report: results, deliveryEmail })
       .then(() => {
         sessionStorage.setItem(storageKey, '1');
         sessionStorage.removeItem(inFlightKey);
-        if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'accepted' });
       })
       .catch(() => {
         notificationStarted.current = false;
         sessionStorage.removeItem(inFlightKey);
-        if (deliveryEmail) dispatch({ type: 'SET_DELIVERY_STATUS', status: 'error', error: 'We could not email the report right now. Your results are safe here—please try again.' });
       });
   }, [results, scan, referralSource, profile, responses, state.delivery.email, dispatch]);
 
@@ -188,10 +185,6 @@ export function ReportStep() {
 
   function printReport() {
     window.print();
-    if (!state.delivery.email.trim() && !state.delivery.printPromptDismissed && !state.delivery.printPromptSeen) {
-      dispatch({ type: 'MARK_PRINT_PROMPT_SEEN' });
-      setShowPrintInvite(true);
-    }
   }
 
   return (
@@ -200,8 +193,6 @@ export function ReportStep() {
         <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'SET_STEP', step: 'assessment' })}>← Back to diagnostic</Button>
         <Button size="sm" onClick={() => dispatch({ type: 'RESET' })}>New scan</Button>
       </div>
-
-      {scanSummary && !showPrintInvite && state.delivery.status !== 'accepted' && (!emailProvidedAtCompletion.current || state.delivery.status === 'error') && !state.delivery.reportPromptDismissed && <div className="no-print mb-6"><ReportEmailCapture scan={scanSummary} onDismiss={() => dispatch({ type: 'DISMISS_REPORT_DELIVERY_PROMPT' })} /></div>}
 
       <div id="report-content">
         <header className="flex items-start justify-between gap-5 mb-5 pb-4 border-b border-[rgba(20,35,55,.10)]">
@@ -262,11 +253,10 @@ export function ReportStep() {
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-bold text-[#0D1726]">Finished reviewing your report?</p>
-            <p className="mt-0.5 text-xs text-[#748094]">Save a copy now, or have the completed report sent to your inbox.</p>
+            <p className="mt-0.5 text-xs text-[#748094]">Save a copy of your completed report for your records.</p>
           </div>
           <Button variant="secondary" size="sm" onClick={printReport}>Print / Save PDF</Button>
         </div>
-        {scanSummary && showPrintInvite && !state.delivery.email.trim() && !state.delivery.printPromptDismissed && <ReportEmailCapture compact scan={scanSummary} onDismiss={() => { setShowPrintInvite(false); dispatch({ type: 'DISMISS_PRINT_DELIVERY_PROMPT' }); }} />}
       </div>
 
       <section className="mb-9 no-print rounded-[18px] border border-[rgba(20,35,55,.08)] bg-white/55 p-5 sm:p-6">

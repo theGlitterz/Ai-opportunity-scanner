@@ -21,7 +21,7 @@ type ContactDetails = {
 };
 
 type ScanPayload = {
-  eventType: 'scan_completed' | 'report_delivery_requested' | 'contact_requested';
+  eventType: 'scan_completed' | 'contact_requested';
   scanId: string;
   completedAt: string;
   referralSource: string;
@@ -37,7 +37,7 @@ const boundedString = (value: unknown, max = 500) => typeof value === 'string' &
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character] as string));
 
 function validScanPayload(value: unknown): value is ScanPayload {
-  if (!isObject(value) || !['scan_completed', 'report_delivery_requested', 'contact_requested'].includes(String(value.eventType))) return false;
+  if (!isObject(value) || !['scan_completed', 'contact_requested'].includes(String(value.eventType))) return false;
   if (!boundedString(value.scanId, 100) || !value.scanId || !boundedString(value.completedAt, 50) || Number.isNaN(Date.parse(value.completedAt as string))) return false;
   if (!boundedString(value.referralSource, 100) || !isObject(value.profile) || !isObject(value.answers) || !isObject(value.report)) return false;
 
@@ -60,7 +60,6 @@ function validScanPayload(value: unknown): value is ScanPayload {
   if (!boundedString(report.recommendation.area, 200)) return false;
 
   if (value.deliveryEmail !== undefined && (!boundedString(value.deliveryEmail, 254) || !EMAIL_PATTERN.test(String(value.deliveryEmail)))) return false;
-  if (value.eventType === 'report_delivery_requested' && !value.deliveryEmail) return false;
 
   if (value.eventType === 'contact_requested') {
     if (!isObject(value.contact)) return false;
@@ -125,13 +124,9 @@ function buildEmail(payload: ScanPayload): string {
   const contactBlock = payload.contact ? `<h2>Executive review request</h2><p><strong>Name:</strong> ${escapeHtml(payload.contact.name)}<br><strong>Work email:</strong> ${escapeHtml(payload.contact.email)}<br><strong>Company:</strong> ${escapeHtml(payload.contact.company || 'Not provided')}<br><strong>Role:</strong> ${escapeHtml(payload.contact.role || 'Not provided')}<br><strong>Marketing opt-in:</strong> ${payload.contact.marketingOptIn ? 'Yes' : 'No'}</p>` : '';
   const leverItems = report.topLevers.map(lever => `<li><strong>${escapeHtml(lever.name)}</strong>: ${escapeHtml(formatMoney(lever.valueLow))}–${escapeHtml(formatMoney(lever.valueHigh))}</li>`).join('');
   const completeReport = escapeHtml(JSON.stringify(report, null, 2));
-  const title = payload.eventType === 'contact_requested' ? 'Executive review requested' : payload.eventType === 'report_delivery_requested' ? 'Opportunity scan contact update' : 'New completed opportunity scan';
-  const delivery = payload.deliveryEmail ? `<p><strong>Report delivery email:</strong> ${escapeHtml(payload.deliveryEmail)}<br><strong>Contact permission:</strong> Requested report delivery only; no follow-up or recurring-marketing consent.</p>` : '';
+  const title = payload.eventType === 'contact_requested' ? 'Executive review requested' : 'New completed opportunity scan';
+  const delivery = payload.deliveryEmail ? `<p><strong>Submitted contact email:</strong> ${escapeHtml(payload.deliveryEmail)}</p>` : '';
   return `<div style="font-family:Arial,sans-serif;color:#172033;line-height:1.5;max-width:760px"><h1>${title}</h1>${contactBlock}${delivery}<h2>Executive summary</h2><p><strong>Scan ID:</strong> ${escapeHtml(payload.scanId)}<br><strong>Completed:</strong> ${escapeHtml(payload.completedAt)}<br><strong>Referral:</strong> ${escapeHtml(payload.referralSource || 'Direct')}<br><strong>Company:</strong> ${escapeHtml(payload.profile.companyName || 'Anonymous')}</p><p><strong>Estimated annual opportunity:</strong> ${escapeHtml(formatMoney(report.annualOpportunity.low))}–${escapeHtml(formatMoney(report.annualOpportunity.high))}<br><strong>EBITDA-equivalent impact:</strong> ${escapeHtml(report.marginImpact.low)}–${escapeHtml(report.marginImpact.high)}%<br><strong>Confidence:</strong> ${escapeHtml(report.confidence)}</p><p>${escapeHtml(report.summary)}</p><h3>Top three opportunities</h3><ol>${leverItems}</ol><p><strong>Recommended first opportunity:</strong> ${escapeHtml(report.recommendation.area)}</p><h2>Complete submitted answers</h2><table style="border-collapse:collapse;width:100%">${rows}</table><h2>Complete calculated report output</h2><pre style="white-space:pre-wrap;background:#f4f6fa;padding:16px;border-radius:8px">${completeReport}</pre></div>`;
-}
-
-function visitorEmail(payload: ScanPayload): string {
-  return `<div style="font-family:Arial,sans-serif;color:#172033;line-height:1.6;max-width:680px"><h1>Your VRise opportunity report</h1><p>Your completed AI Profit Opportunity Report is attached.</p><p>This service message was sent because this address was provided for report delivery. It does not consent to a follow-up and you have not been added to recurring marketing.</p><p>For questions about your report or personal data, reply to this email or contact <a href="mailto:contact@vrise.tech">contact@vrise.tech</a>.</p><p><a href="https://scanner.vrise.tech/privacy">Privacy notice</a></p></div>`;
 }
 
 async function sendResendEmail(apiKey: string, body: Record<string, unknown>, idempotencyKey: string): Promise<EmailSendResult> {
@@ -180,33 +175,23 @@ export async function POST(request: Request) {
     const apiKey = process.env.RESEND_API_KEY;
     const to = process.env.SCAN_NOTIFICATION_TO;
     const from = process.env.SCAN_NOTIFICATION_FROM;
-    const replyTo = process.env.SCAN_NOTIFICATION_REPLY_TO || 'contact@vrise.tech';
-    if (!apiKey || !to || !from || !EMAIL_PATTERN.test(replyTo)) {
+    if (!apiKey || !to || !from) {
       console.error('Scan notification unavailable: Resend configuration is incomplete.');
       return NextResponse.json({ error: 'Notification service is unavailable.' }, { status: 503 });
     }
     const company = scanPayload.profile.companyName.replace(/[\r\n]+/g, ' ').trim() || 'Anonymous';
     const referral = scanPayload.referralSource.replace(/[\r\n]+/g, ' ').trim() || 'Direct';
-    const eventLabel = scanPayload.eventType === 'report_delivery_requested' ? 'Contact update' : scanPayload.eventType === 'contact_requested' ? 'Executive review' : 'New VRise opportunity scan';
+    const eventLabel = scanPayload.eventType === 'contact_requested' ? 'Executive review' : 'New VRise opportunity scan';
     const subject = `${eventLabel} — ${company} — ${referral}`;
-    const pdf = scanPayload.eventType === 'contact_requested' ? null : generateReportPdf(scanPayload);
+    const pdf = generateReportPdf(scanPayload);
     const attachment = pdf ? { filename: `vrise-opportunity-report-${scanPayload.scanId.slice(0, 36)}.pdf`, content: pdf.toString('base64') } : null;
     const common = attachment ? { from, attachments: [attachment] } : { from };
     const emailHash = scanPayload.deliveryEmail ? createHash('sha256').update(scanPayload.deliveryEmail).digest('hex').slice(0, 24) : 'anonymous';
     const adminReplyTo = scanPayload.deliveryEmail || scanPayload.contact?.email;
 
-    const shouldSendAdmin = scanPayload.eventType !== 'report_delivery_requested';
-    const shouldSendCustomer = Boolean(scanPayload.deliveryEmail && scanPayload.eventType !== 'contact_requested');
-    const adminPromise = shouldSendAdmin
-      ? sendResendEmail(apiKey, { ...common, to: [to], subject, html: buildEmail(scanPayload), ...(adminReplyTo ? { reply_to: adminReplyTo } : {}) }, `${scanPayload.scanId}:vrise:${scanPayload.eventType}:${emailHash}`)
-      : Promise.resolve<EmailSendResult>({ accepted: false, skipped: true });
-    const customerPromise = shouldSendCustomer
-      ? sendResendEmail(apiKey, { ...common, to: [scanPayload.deliveryEmail!], subject: 'Your VRise AI Profit Opportunity Report', html: visitorEmail(scanPayload), reply_to: replyTo }, `${scanPayload.scanId}:visitor:${emailHash}`)
-      : Promise.resolve<EmailSendResult>({ accepted: false, skipped: true });
-    const [admin, customer] = await Promise.all([adminPromise, customerPromise]);
-    const ok = (!shouldSendAdmin || admin.accepted) && (!shouldSendCustomer || customer.accepted);
-    if (!ok) console.error(`Scan notification delivery failed (admin:${admin.status ?? 'unavailable'}, customer:${customer.status ?? 'unavailable'}).`);
-    return NextResponse.json({ ok, status: ok ? 'accepted' : 'failed', admin, customer, accepted: ok, delivered: false }, { status: ok ? 200 : 502 });
+    const admin = await sendResendEmail(apiKey, { ...common, to: [to], subject, html: buildEmail(scanPayload), ...(adminReplyTo ? { reply_to: adminReplyTo } : {}) }, `${scanPayload.scanId}:vrise:${scanPayload.eventType}:${emailHash}`);
+    if (!admin.accepted) console.error(`Scan notification delivery failed (admin:${admin.status ?? 'unavailable'}).`);
+    return NextResponse.json({ ok: admin.accepted, status: admin.accepted ? 'accepted' : 'failed', admin, customer: { accepted: false, skipped: true }, accepted: admin.accepted, delivered: false }, { status: admin.accepted ? 200 : 502 });
   } catch {
     console.error('Scan notification failed unexpectedly.');
     return NextResponse.json({ error: 'Notification could not be delivered.' }, { status: 500 });

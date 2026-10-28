@@ -21,12 +21,12 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className={headingClass}>What we use</h2>
-            <p>We use your scanner answers, calculated report, optional company name and email, referral information, and basic security data to operate the scanner, deliver a requested report, prevent misuse, and respond to an executive-review request. Please do not submit sensitive or confidential personal information.</p>
+            <p>We use your scanner answers, calculated report, optional company name and email, referral information, and basic security data to operate the scanner, prevent misuse, and respond to an executive-review request. Please do not submit sensitive or confidential personal information.</p>
           </section>
 
           <section>
             <h2 className={headingClass}>Email choices</h2>
-            <p>A report-delivery email is used to send the report you request. A relevant personalised follow-up is separate and will only be sent where Irish electronic-marketing rules permit it. Occasional marketing is also separate and requires you to select the optional marketing checkbox. You can opt out at any time by emailing <a className={linkClass} href="mailto:contact@vrise.tech">contact@vrise.tech</a>.</p>
+            <p>If you provide an email, it is shared with VRise so we can identify your submission and respond where appropriate. Any relevant personalised follow-up is separate and will only be sent where Irish electronic-marketing rules permit it. Occasional marketing is separate and requires the optional marketing checkbox. You can object or opt out at any time by emailing <a className={linkClass} href="mailto:contact@vrise.tech">contact@vrise.tech</a>.</p>
           </section>
 
           <section>
