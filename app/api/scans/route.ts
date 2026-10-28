@@ -185,11 +185,6 @@ export async function POST(request: Request) {
       console.error('Scan notification unavailable: Resend configuration is incomplete.');
       return NextResponse.json({ error: 'Notification service is unavailable.' }, { status: 503 });
     }
-    if (/@resend\.dev\b/i.test(from)) {
-      console.error('Scan notification unavailable: configure a verified production sender domain.');
-      return NextResponse.json({ error: 'Notification service is unavailable.' }, { status: 503 });
-    }
-
     const company = scanPayload.profile.companyName.replace(/[\r\n]+/g, ' ').trim() || 'Anonymous';
     const referral = scanPayload.referralSource.replace(/[\r\n]+/g, ' ').trim() || 'Direct';
     const eventLabel = scanPayload.eventType === 'report_delivery_requested' ? 'Contact update' : scanPayload.eventType === 'contact_requested' ? 'Executive review' : 'New VRise opportunity scan';
